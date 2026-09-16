@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patient Registry Dashboard</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #f7f7f8; margin: 0; padding: 2rem; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  .sub { color: #666; margin-bottom: 1.5rem; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 0.88rem; }
+  th { background: #fafafa; font-weight: 600; color: #444; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; background: #e8f0fe; color: #1a56db; }
+  #status { margin-top: 1rem; font-size: 0.85rem; color: #888; }
+  .refresh { float: right; background: #1a56db; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+  <h1>Patient Registry <button class="refresh" onclick="load()">Refresh</button></h1>
+  <div class="sub">Live view of registered patients (soft-deleted records hidden)</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>DOB</th><th>Sex</th><th>Phone</th><th>City / State</th><th>Insurance</th><th>Created</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div id="status">Loading...</div>
+
+<script>
+async function load() {
+  const status = document.getElementById('status');
+  status.textContent = 'Loading...';
+  try {
+    const res = await fetch('/patients');
+    const json = await res.json();
+    const rows = document.getElementById('rows');
+    rows.innerHTML = '';
+    (json.data || []).forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.first_name} ${p.last_name}</td>
+        <td>${p.date_of_birth}</td>
+        <td>${p.sex}</td>
+        <td>${p.phone_number}</td>
+        <td>${p.city}, ${p.state}</td>
+        <td>${p.insurance_provider ? `<span class="badge">${p.insurance_provider}</span>` : '—'}</td>
+        <td>${new Date(p.created_at).toLocaleString()}</td>
+      `;
+      rows.appendChild(tr);
+    });
+    status.textContent = `${json.data.length} patient(s) · last refreshed ${new Date().toLocaleTimeString()}`;
+  } catch (e) {
+    status.textContent = 'Failed to load patients: ' + e.message;
+  }
+}
+load();
+</script>
+</body>
+</html>
