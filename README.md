@@ -12,16 +12,17 @@ information, persists it to a database, and exposes it via a REST API + dashboar
 ---
 
 ## Architecture
-Caller (phone)
-     │
-     ▼
-Vapi (telephony + STT/TTS + LLM orchestration)
-     │  tool calls (HTTPS webhooks)
-     ▼
-FastAPI backend  ──────►  SQLite / Postgres
-     │
-     ▼
-REST API  ◄──── Dashboard (static HTML, fetches /patients)
+
+    Caller (phone)
+         |
+         v
+    Vapi (telephony + STT/TTS + LLM orchestration)
+         |  tool calls (HTTPS webhooks)
+         v
+    FastAPI backend  ------>  SQLite / Postgres
+         |
+         v
+    REST API  <----  Dashboard (static HTML, fetches /patients)
 
 **Separation of concerns:**
 - **Telephony + voice**: Vapi handles the phone number, speech-to-text,
