@@ -4,7 +4,7 @@ A phone-based AI agent that conversationally collects U.S. patient demographic
 information, persists it to a database, and exposes it via a REST API + dashboard.
 
 **Live demo:**
-- Phone number: `+1 (701) 977 9203`
+- Phone number: `<YOUR VAPI PHONE NUMBER HERE>`
 - API base URL: `https://web-production-575b9.up.railway.app`
 - Dashboard: `https://web-production-575b9.up.railway.app/dashboard`
 - API docs (auto-generated): `https://web-production-575b9.up.railway.app/docs`
@@ -12,18 +12,16 @@ information, persists it to a database, and exposes it via a REST API + dashboar
 ---
 
 ## Architecture
-
-    Caller (phone)
-         |
-         v
-    Vapi (telephony + STT/TTS + LLM orchestration)
-         |  tool calls (HTTPS webhooks)
-         v
-    FastAPI backend  ------>  SQLite / Postgres
-         |
-         v
-    REST API  <----  Dashboard (static HTML, fetches /patients)
-
+Caller (phone)
+     |
+     v
+Vapi (telephony + STT/TTS + LLM orchestration)
+     |  tool calls (HTTPS webhooks)
+     v
+FastAPI backend  ------>  PostgreSQL (Railway managed)
+     |
+     v
+REST API  <----  Dashboard (static HTML, fetches /patients)
 **Separation of concerns:**
 - **Telephony + voice**: Vapi handles the phone number, speech-to-text,
   text-to-speech, and turn-taking. It runs the LLM conversation and calls
@@ -48,9 +46,11 @@ information, persists it to a database, and exposes it via a REST API + dashboar
 - **SQLModel**: lets one class define both the DB table and the
   request/response schema, instead of hand-writing separate SQLAlchemy models
   + Pydantic schemas + mapping code between them.
-- **SQLite by default**: zero setup, file-based, good enough for an
-  assessment. Swap to Postgres by setting `DATABASE_URL` — no code changes
-  needed (see Trade-offs below on why this matters for deployment).
+- **PostgreSQL (Railway managed)**: the app supports either SQLite or
+  Postgres via a single `DATABASE_URL` env var with no code changes. Started
+  on SQLite for local dev speed; deployed on Railway's managed Postgres so
+  data survives redeploys (see Trade-offs — this was switched to after
+  discovering Railway's default filesystem is ephemeral).
 - **Vapi**: abstracts STT/TTS/telephony so the actual engineering effort goes
   into the system prompt and tool design, which is what's actually being
   evaluated per the assessment's own FAQ.
@@ -125,7 +125,7 @@ flow, connected directly to the phone number's inbound settings.
 git clone <your-repo-url>
 cd patient-voice-agent
 pip install -r requirements.txt
-cp .env.example .env   # edit DATABASE_URL if using Postgres
+cp .env.example .env   # set DATABASE_URL for Postgres, or leave default for local SQLite
 python seed.py         # optional: adds 2 demo patients
 uvicorn app.main:app --reload
 ```
@@ -137,8 +137,9 @@ Visit `http://localhost:8000/docs` for interactive API docs, or
 
 Push to GitHub, then connect the repo in [Railway](https://railway.app):
 - Railway auto-detects `Procfile` / `railway.json` and deploys.
-- Set `DATABASE_URL` in Railway's environment variables if attaching a
-  managed Postgres (recommended — see Trade-offs).
+- Add a Railway-managed PostgreSQL service (New → Database → PostgreSQL) and
+  set the web service's `DATABASE_URL` variable to the Postgres connection
+  string so data survives redeploys.
 - Deployed here at `https://web-production-575b9.up.railway.app`.
 
 ### 3. Vapi setup
@@ -160,7 +161,7 @@ Push to GitHub, then connect the repo in [Railway](https://railway.app):
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `DATABASE_URL` | No | `sqlite:///./patients.db` | SQLAlchemy connection string |
+| `DATABASE_URL` | No | `sqlite:///./patients.db` | SQLAlchemy connection string. Set to a Postgres URL in production. |
 
 No API keys are hardcoded anywhere in the repo; Vapi/LLM credentials live in
 Vapi's own dashboard, not in this codebase, since the backend never calls an
@@ -168,11 +169,13 @@ LLM directly — Vapi does.
 
 ## Known limitations & trade-offs
 
-- **SQLite on ephemeral disk**: if deployed to a platform without a
-  persistent volume, the SQLite file can be wiped on redeploy. For a real
-  submission, either (a) attach a Railway volume, or (b) set `DATABASE_URL`
-  to Railway's managed Postgres addon — the code supports both with no
-  changes. Documented here rather than silently risking data loss.
+- **Started on SQLite, moved to Postgres**: local dev defaults to SQLite for
+  zero-setup speed. The deployed instance uses Railway's managed Postgres —
+  during testing, the initial SQLite-on-Railway setup lost data across a
+  redeploy (Railway's default filesystem is ephemeral), so the production
+  deployment was switched to Postgres via the `DATABASE_URL` env var, with
+  no application code changes required. Verified: a patient registered via
+  the API remained present after a subsequent redeploy.
 - **No auth on the REST API**: acceptable for this assessment's scope (per
   the FAQ, HIPAA/production-hardening is explicitly out of scope); a real
   system would need API auth and per-tenant scoping.
