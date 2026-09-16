@@ -4,7 +4,7 @@ A phone-based AI agent that conversationally collects U.S. patient demographic
 information, persists it to a database, and exposes it via a REST API + dashboard.
 
 **Live demo:**
-- Phone number: `<YOUR VAPI PHONE NUMBER HERE>`
+- Phone number: `+1 (701) 977 9203`
 - API base URL: `https://web-production-575b9.up.railway.app`
 - Dashboard: `https://web-production-575b9.up.railway.app/dashboard`
 - API docs (auto-generated): `https://web-production-575b9.up.railway.app/docs`
