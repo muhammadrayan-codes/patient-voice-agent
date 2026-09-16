@@ -1,18 +1,24 @@
 {
-  "name": "Patient Registration Agent",
+  "_note": "This file documents the assistant exactly as configured and published in the Vapi dashboard (it was built there manually, screen by screen, not imported from this file). Kept here so a reviewer can see the full system prompt, tool schemas, and settings without needing Vapi dashboard access. The live assistant ID in Vapi is ad0fea91-94b2-4794-9782-7ac583053465.",
+  "id": "ad0fea91-94b2-4794-9782-7ac583053465",
+  "name": "Patient Registration Assistant",
   "model": {
     "provider": "openai",
-    "model": "gpt-4o",
+    "model": "gpt-4.1",
     "temperature": 0.4,
     "systemPrompt": "You are Alex, a warm and efficient patient intake coordinator for a medical clinic, answering the phone to register new patients over a phone call.\n\n## Your job\nCollect the standard patient demographic fields through natural conversation — never read them off like a form. Ask a few related things at once when it feels natural (e.g. 'Can I get your full name and date of birth?'), but re-ask individually if the caller only answers part of it.\n\n## Required fields (must collect all before saving)\n- first_name, last_name\n- date_of_birth (not in the future, valid calendar date)\n- sex (Male, Female, Other, or Decline to Answer)\n- phone_number (10-digit US number)\n- address_line_1, city, state (2-letter), zip_code\n\n## Optional fields (offer once, don't push)\nemail, address_line_2, insurance_provider, insurance_member_id, preferred_language, emergency_contact_name, emergency_contact_phone.\nAfter required fields are collected, say something like: 'I can also grab your insurance info, an emergency contact, or your preferred language if you'd like — totally optional.' If they decline, move on immediately.\n\n## Conversation flow\n1. Greet warmly, briefly explain you're going to get them registered.\n2. FIRST: call the lookup_patient tool with any phone number they give you (as soon as you have it) to check if they're a returning caller.\n   - If found: say 'It looks like we already have a record for [first name] [last name]. Would you like to update your information, or is this a new registration?' Follow their lead.\n3. Collect required fields conversationally. Don't recite the whole list at once — let it flow like a real conversation.\n4. Offer optional fields once, briefly.\n5. READ BACK everything you collected, clearly, and ask 'Does all of that sound right, or would you like to change anything?'\n6. If they correct something, update just that field and re-confirm only the changed part, not the whole thing again.\n7. Once confirmed, call the create_patient tool with the full collected data.\n8. Relay the outcome:\n   - Success: 'You're all set, [First Name]! Thanks so much, take care.' Then end the call.\n   - Failure: Apologize, briefly explain there was a technical hiccup, and let them know someone will follow up, or offer to try again once.\n\n## Validation & error handling (do this yourself before calling any tool)\n- Date of birth: must be a real calendar date, not in the future. If invalid or in the future, say so specifically and re-ask just that field: 'That date doesn't look quite right — could you give me your date of birth again?'\n- Phone number: must have exactly 10 digits. If they give fewer/more, ask them to repeat it.\n- State: must be a real US state abbreviation or name (convert full names to 2-letter codes yourself, e.g. 'Texas' -> 'TX').\n- Zip code: 5 digits (or ZIP+4).\n- Never guess or fill in a field the caller didn't actually provide.\n\n## Handling corrections & interruptions\n- If the caller corrects something mid-flow ('Actually, my last name is spelled D-A-V-I-S, not D-A-V-I-E-S'), immediately acknowledge and update just that field — don't restart the whole conversation.\n- If they say 'wait, start over' or similar, confirm: 'No problem, let's start fresh — go ahead whenever you're ready,' and discard previously collected answers for this call.\n- If they go out of order (e.g., give their address before you asked), accept it naturally and just don't re-ask for it later.\n- If the line seems to cut out or they trail off, gently check in: 'Sorry, I think I lost you for a second — could you repeat that?'\n\n## Tone\nConversational, warm, efficient. Not robotic, not overly chatty. You're a competent human coordinator who's done this a thousand times and makes it painless. Use natural acknowledgments ('Got it,' 'Perfect,' 'Thank you') sparingly, not after every single answer."
   },
   "voice": {
-    "provider": "11labs",
-    "voiceId": "burt"
+    "provider": "vapi",
+    "voiceId": "Elliot"
+  },
+  "transcriber": {
+    "provider": "soniox",
+    "model": "stt-rt-v5",
+    "language": "en"
   },
   "firstMessage": "Hi there, thanks for calling! I'm Alex, and I'll be helping you get registered as a new patient today. Can I start with your full name?",
-  "endCallMessage": "Thanks so much, take care!",
-  "endCallPhrases": ["goodbye", "that's all", "you're all set"],
+  "endCallMessage": "Goodbye.",
   "tools": [
     {
       "type": "function",
@@ -27,11 +33,13 @@
               "description": "10-digit US phone number, digits only"
             }
           },
-          "required": ["phone_number"]
+          "required": [
+            "phone_number"
+          ]
         }
       },
       "server": {
-        "url": "REPLACE_WITH_YOUR_API_URL/vapi/tools/lookup_patient"
+        "url": "https://web-production-575b9.up.railway.app/vapi/tools/lookup_patient"
       }
     },
     {
@@ -42,28 +50,79 @@
         "parameters": {
           "type": "object",
           "properties": {
-            "first_name": {"type": "string"},
-            "last_name": {"type": "string"},
-            "date_of_birth": {"type": "string", "description": "YYYY-MM-DD format"},
-            "sex": {"type": "string", "enum": ["Male", "Female", "Other", "Decline to Answer"]},
-            "phone_number": {"type": "string", "description": "10-digit US phone number, digits only"},
-            "email": {"type": "string"},
-            "address_line_1": {"type": "string"},
-            "address_line_2": {"type": "string"},
-            "city": {"type": "string"},
-            "state": {"type": "string", "description": "2-letter US state abbreviation"},
-            "zip_code": {"type": "string"},
-            "insurance_provider": {"type": "string"},
-            "insurance_member_id": {"type": "string"},
-            "preferred_language": {"type": "string"},
-            "emergency_contact_name": {"type": "string"},
-            "emergency_contact_phone": {"type": "string"}
+            "first_name": {
+              "type": "string"
+            },
+            "last_name": {
+              "type": "string"
+            },
+            "date_of_birth": {
+              "type": "string",
+              "description": "YYYY-MM-DD format"
+            },
+            "sex": {
+              "type": "string",
+              "enum": [
+                "Male",
+                "Female",
+                "Other",
+                "Decline to Answer"
+              ]
+            },
+            "phone_number": {
+              "type": "string",
+              "description": "10-digit US phone number, digits only"
+            },
+            "email": {
+              "type": "string"
+            },
+            "address_line_1": {
+              "type": "string"
+            },
+            "address_line_2": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "description": "2-letter US state abbreviation"
+            },
+            "zip_code": {
+              "type": "string"
+            },
+            "insurance_provider": {
+              "type": "string"
+            },
+            "insurance_member_id": {
+              "type": "string"
+            },
+            "preferred_language": {
+              "type": "string"
+            },
+            "emergency_contact_name": {
+              "type": "string"
+            },
+            "emergency_contact_phone": {
+              "type": "string"
+            }
           },
-          "required": ["first_name", "last_name", "date_of_birth", "sex", "phone_number", "address_line_1", "city", "state", "zip_code"]
+          "required": [
+            "first_name",
+            "last_name",
+            "date_of_birth",
+            "sex",
+            "phone_number",
+            "address_line_1",
+            "city",
+            "state",
+            "zip_code"
+          ]
         }
       },
       "server": {
-        "url": "REPLACE_WITH_YOUR_API_URL/vapi/tools/create_patient"
+        "url": "https://web-production-575b9.up.railway.app/vapi/tools/create_patient"
       }
     }
   ]

@@ -1,30 +1,3 @@
-# Voice AI Patient Registration System
-
-A phone-based AI agent that conversationally collects U.S. patient demographic
-information, persists it to a database, and exposes it via a REST API + dashboard.
-
-**Live demo:**
-- Phone number: `<FILL IN AFTER VAPI SETUP>`
-- API base URL: `<FILL IN AFTER RAILWAY DEPLOY>`
-- Dashboard: `<API_BASE_URL>/dashboard`
-- API docs (auto-generated): `<API_BASE_URL>/docs`
-
----
-
-## Architecture
-
-```
-Caller (phone)
-     │
-     ▼
-Vapi (telephony + STT/TTS + LLM orchestration)
-     │  tool calls (HTTPS webhooks)
-     ▼
-FastAPI backend  ──────►  SQLite / Postgres
-     │
-     ▼
-REST API  ◄──── Dashboard (static HTML, fetches /patients)
-```
 
 **Separation of concerns:**
 - **Telephony + voice**: Vapi handles the phone number, speech-to-text,
@@ -91,7 +64,14 @@ Plus two Vapi-specific webhook routes (`/vapi/tools/lookup_patient`,
 
 ## Voice agent design
 
-Full system prompt: `vapi/assistant-config.json`. Key decisions:
+Full system prompt and tool schemas: `vapi/assistant-config.json`. The
+assistant was built directly in the Vapi dashboard (Assistants → Create
+Assistant → Function tools), not imported from this file — the JSON in this
+repo is kept as accurate documentation of the live configuration (model,
+prompt, voice, and tool schemas) so a reviewer can see the full prompt
+engineering without needing dashboard access. Live model: GPT-4.1.
+
+Key design decisions:
 
 - **Lookup-before-create**: the agent calls `lookup_patient` as soon as it has
   a phone number, *before* collecting the rest of the info, so it can offer
@@ -107,6 +87,10 @@ Full system prompt: `vapi/assistant-config.json`. Key decisions:
 - **Corrections & restarts**: explicit prompt instructions for "actually, my
   name is spelled..." (update just that field) vs. "start over" (discard
   and restart) so the conversation doesn't have to be linear.
+
+A Squad was scaffolded in the Vapi dashboard while exploring configuration
+options but is not used — a single assistant handles the entire registration
+flow, connected directly to the phone number's inbound settings.
 
 ## Setup
 
@@ -130,17 +114,22 @@ Push to GitHub, then connect the repo in [Railway](https://railway.app):
 - Railway auto-detects `Procfile` / `railway.json` and deploys.
 - Set `DATABASE_URL` in Railway's environment variables if attaching a
   managed Postgres (recommended — see Trade-offs).
-- Note your public URL, e.g. `https://your-app.up.railway.app`.
+- Deployed here at `https://web-production-575b9.up.railway.app`.
 
 ### 3. Vapi setup
 
-1. Create an account at [vapi.ai](https://vapi.ai), provision a US phone number.
-2. Import `vapi/assistant-config.json` as a new assistant (or recreate its
-   settings in the dashboard).
-3. **Replace `REPLACE_WITH_YOUR_API_URL`** in both tool `server.url` fields
-   with your deployed API base URL.
-4. Attach the phone number to the assistant.
-5. Call the number to test.
+1. Create an account at [vapi.ai](https://vapi.ai).
+2. Create a new assistant (Assistants → Create Assistant), set the model,
+   first message, and system prompt as documented in
+   `vapi/assistant-config.json`.
+3. Add two **Function** tools — `lookup_patient` and `create_patient` — with
+   the parameter schemas and server URLs shown in `vapi/assistant-config.json`,
+   pointed at the deployed API's `/vapi/tools/lookup_patient` and
+   `/vapi/tools/create_patient` endpoints.
+4. Provision a phone number (Phone Numbers → Create Phone Number) and, under
+   that number's **Inbound Settings**, set the **Assistant** field to this
+   assistant.
+5. Publish the assistant. Call the number to test.
 
 ## Environment variables
 
@@ -167,13 +156,19 @@ LLM directly — Vapi does.
   name + DOB to catch typo'd phone numbers.
 - **No automated test suite included** given the time budget — manual
   end-to-end testing was done against every endpoint and both Vapi webhook
-  routes (see commit history / testing notes). This would be the first
-  thing added with more time.
+  routes, plus a full live phone call that successfully registered a patient
+  and confirmed on the dashboard. Automated tests would be the first thing
+  added with more time.
 - **Call transcript storage** (bonus) not implemented — noted as a Next Step.
 - **Mid-call disconnects**: handled at the Vapi platform level (it manages
   the call session); on our side, since nothing is written to the DB until
   the final confirmed `create_patient` call, a dropped call simply results
   in no record being created — no partial/corrupt data risk.
+- **Vapi free-tier call limits**: the free Vapi phone number has a 10
+  outbound-call-per-day cap (calls placed *by* Vapi, e.g. via the dashboard's
+  "Talk to Assistant" test feature) and a 10-concurrent-call account limit.
+  This does not affect inbound calls — i.e. a reviewer dialing the number
+  directly is unaffected.
 
 ## Next steps (with more time)
 
