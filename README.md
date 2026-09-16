@@ -1,3 +1,27 @@
+# Voice AI Patient Registration System
+
+A phone-based AI agent that conversationally collects U.S. patient demographic
+information, persists it to a database, and exposes it via a REST API + dashboard.
+
+**Live demo:**
+- Phone number: `<YOUR VAPI PHONE NUMBER HERE>`
+- API base URL: `https://web-production-575b9.up.railway.app`
+- Dashboard: `https://web-production-575b9.up.railway.app/dashboard`
+- API docs (auto-generated): `https://web-production-575b9.up.railway.app/docs`
+
+---
+
+## Architecture
+Caller (phone)
+│
+▼
+Vapi (telephony + STT/TTS + LLM orchestration)
+│ tool calls (HTTPS webhooks)
+▼
+FastAPI backend ──────► SQLite / Postgres
+│
+▼
+REST API ◄──── Dashboard (static HTML, fetches /patients)
 
 **Separation of concerns:**
 - **Telephony + voice**: Vapi handles the phone number, speech-to-text,
